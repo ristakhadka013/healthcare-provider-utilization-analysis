@@ -3,3 +3,6 @@ data/
 *.xlsx
 ~$*.xlsx
 *.tmp
+python/.ipynb_checkpoints
+python/.virtual_documents
+python/anaconda_projects/
