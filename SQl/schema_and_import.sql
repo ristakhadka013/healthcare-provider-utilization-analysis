@@ -93,3 +93,45 @@ SET
     
 SELECT COUNT(*) AS TOTALDATA
 FROM healthcare;
+
+DESCRIBE healthcare;
+
+SELECT COUNT(*) AS invalid_utilization_records
+FROM healthcare
+WHERE Tot_Benes <= 0
+   OR Tot_Srvcs <= 0
+   OR Tot_Bene_Day_Srvcs <= 0;
+    
+SELECT COUNT(*) AS financial_amount
+FROM healthcare
+WHERE Avg_Sbmtd_Chrg < 0
+	OR Avg_Mdcr_Alowd_Amt < 0
+    OR Avg_Mdcr_Pymt_Amt < 0
+    OR Avg_Mdcr_Stdzd_Amt < 0;
+    
+SELECT COUNT(*) AS invalid_payment_records
+FROM healthcare
+WHERE Avg_Mdcr_Pymt_Amt > Avg_Mdcr_Alowd_Amt;
+
+SELECT 
+    Rndrng_Prvdr_Ent_Cd,
+    COUNT(*) AS record_count
+FROM healthcare
+GROUP BY Rndrng_Prvdr_Ent_Cd;
+    
+SELECT 
+    Rndrng_Prvdr_Mdcr_Prtcptg_Ind,
+    COUNT(*) AS record_count
+FROM healthcare
+GROUP BY Rndrng_Prvdr_Mdcr_Prtcptg_Ind;
+
+SELECT COUNT(*) AS invalid_identifier_records
+FROM healthcare
+WHERE TRIM(Rndrng_NPI) = ''
+   OR TRIM(HCPCS_Cd) = '';
+
+
+
+
+
+
