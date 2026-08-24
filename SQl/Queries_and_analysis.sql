@@ -1,8 +1,8 @@
 /* Business Question
-Analyze healthcare provider utilization, cost, and payment patterns to identify significant and potentially unusual patterns 
+Analyze healthcare provider utilization, and payment patterns to identify insignificant values and potentially unusual patterns 
 that may require further investigation. */
 
-# 1. Service Utilization Analysis
+# 1. Provider-type <--> Service Utilization Analysis
 -- 1.1 Which provider types have the highest service utilization?
 
 SELECT 
@@ -29,6 +29,7 @@ were driving this volume.
 
 */
 
+-- Clinical Laboratory <--> service level drilling 
 -- 1.2 What services are driving Clinical Laboratory utilization?
 
 SELECT
@@ -39,11 +40,7 @@ SELECT
     ROUND(
         SUM(Tot_Srvcs) / COUNT(DISTINCT Rndrng_NPI),
         2
-    ) AS service_per_provider,
-    ROUND(
-        SUM(Avg_Mdcr_Pymt_Amt * Tot_Srvcs),
-        2
-    ) AS estimated_medicare_payment
+    ) AS service_per_provider
 FROM healthcare
 WHERE Rndrng_Prvdr_Type = 'Clinical Laboratory'
 GROUP BY HCPCS_Cd, HCPCS_Desc
@@ -55,15 +52,12 @@ Findings :
 Clinical Laboratories recorded 13.55 million services. More than half of this volume came from two services: COVID-19 testing and 
 specimen collection for homebound or nursing-home patients.
 
-COVID-19 testing recorded approximately 4.27 million services across 10 providers, with an estimated Medicare payment of approximately
- $50.2 million.
-
-P9603 had extremely high services per provider but a much lower estimated Medicare payment, showing that high utilization does not 
-necessarily mean high payment.
+COVID-19 testing recorded approximately 4.27 million services across 10 providers, which have 426957 service per provider.
+P9603 service recorded approximately 2.77 million services across 5 providers, which have 553759.72 service per provider.
 */
 
-# 2. Payment Analysis
--- 2.1 Do high-utilization services also generate high Medicare payments?
+-- service ultization <-->  medicare payment 
+-- 1.3 Do high-utilization services also generate high Medicare payments?
 
 SELECT
     HCPCS_Cd,
@@ -91,11 +85,11 @@ and estimated payment per service is $2,939.64.
 COVID-19 tests have total services 4.3 million, estimated Medicare payment $50.2 million, and estimated payment per services 
 is $11.76 million.
 
-This indicates that higher services can have lower estimated payment, whereas lower services can  have high estimated payment 
-per services.
+This indicates that higher services can have lower estimated payment, whereas lower services can  have high estimated payment.
 */
 
--- 2.2 Payment pattern by provider type
+-- 2. Provider type <--> payment pattern 
+-- 2.1 How do utilization and payment patterns differ across provider types?
 
 SELECT
     Rndrng_Prvdr_Type,
@@ -127,9 +121,11 @@ Lower utilization + higher payment per service
 Ambulatory Surgical Center → 647K services, $169.36/service
 Ophthalmology → 1.66M services, $112.14/service
 Emergency Medicine → 650K services, $95.37/service 
+
+Different provider type have very different utlization and payment structure 
 */
 
-# 3. Provider-Level Utilization
+# 3. Provider-Level <--> Service Utilization
 -- 3.1 Which individual providers generate the most services?
 
 SELECT
@@ -158,6 +154,7 @@ Finding :
 Vcare Testing Centre Corp. recorded the highest service volume at approximately 3.64 million services.
 */
 
+-- Vcare <--> Service level drilling
 -- 3.2 What is driving Vcare's extremely high service volume?
 
 SELECT
@@ -176,7 +173,7 @@ LIMIT 10;
 
 /* 
 Finding :
-Vcare's high service volume was primarily driven by COVID-19 testing rather than a broad range of services.
+Vcare's high service volume was primarily driven by COVID-19 testing.
 */
 
 -- 3.3 Who performed the most COVID-19 tests?
@@ -209,31 +206,8 @@ Vcare Testing Centre Corp. recorded approximately 3.64 million COVID-19 tests, g
  payments. 
  */
  
-# 4. Provider Concentration
--- 4.1 How concentrated is service utilization?
-
-SELECT
-    ROUND(SUM(total_services), 2) AS top_10_services
-FROM (
-    SELECT
-        Rndrng_NPI,
-        SUM(Tot_Srvcs) AS total_services
-    FROM healthcare
-    GROUP BY Rndrng_NPI
-    ORDER BY total_services DESC
-    LIMIT 10
-) AS top_providers;
-
-SELECT
-    ROUND(SUM(Tot_Srvcs), 2) AS total_dataset_services
-FROM healthcare;
-
-/* 
-Finding :
-The top 10 providers account for approximately 13% of all services in the dataset.
-*/
-
--- 4.2 Which providers receive the highest estimated Medicare payments?
+# 4. Provider level <--> payment Pattern
+-- 4.1 Which providers receive the highest estimated Medicare payments?
 
 SELECT
     Rndrng_NPI,
@@ -293,35 +267,28 @@ provider_type_benchmark AS (
     FROM provider_metrics
     WHERE total_services >= 100
     GROUP BY Rndrng_Prvdr_Type
-),
-
-provider_comparison AS (
-    SELECT
-        p.*,
-        b.benchmark_payment_per_service
-    FROM provider_metrics p
-    JOIN provider_type_benchmark b
-        ON p.Rndrng_Prvdr_Type = b.Rndrng_Prvdr_Type
-    WHERE p.total_services >= 100
 )
 
 SELECT
-    Rndrng_NPI,
-    Rndrng_Prvdr_Last_Org_Name,
-    Rndrng_Prvdr_First_Name,
-    Rndrng_Prvdr_Type,
-    ROUND(total_services, 2) AS total_services,
+    p.Rndrng_NPI,
+    p.Rndrng_Prvdr_Last_Org_Name,
+    p.Rndrng_Prvdr_First_Name,
+    p.Rndrng_Prvdr_Type,
+    ROUND(p.total_services, 2) AS total_services,
     ROUND(
-        estimated_medicare_payment / total_services,
+        p.estimated_medicare_payment / p.total_services,
         2
     ) AS provider_payment_per_service,
-    ROUND(benchmark_payment_per_service, 2) AS peer_benchmark,
+    ROUND(b.benchmark_payment_per_service, 2) AS peer_benchmark,
     ROUND(
-        (estimated_medicare_payment / total_services)
-        / benchmark_payment_per_service,
+        (p.estimated_medicare_payment / p.total_services) -- payment per services/ its benchmark
+        / b.benchmark_payment_per_service,
         2
     ) AS peer_payment_ratio
-FROM provider_comparison
+FROM provider_metrics p
+JOIN provider_type_benchmark b
+ON p.Rndrng_Prvdr_Type = b.Rndrng_Prvdr_Type
+WHERE p.total_services >= 100
 ORDER BY peer_payment_ratio DESC
 LIMIT 20;
 
@@ -339,8 +306,11 @@ Approximately $60.2M estimated Medicare payment
 
 Most importantly, it has enough service volume to make the signal more meaningful than an extreme ratio based on only a few 
 hundred services.
+
+note: i used 100 services threshold  for peer benchmarking to reduce the impact with very small service volume.
 */
 
+-- caris  <--> service level drilling
 -- 5.2 What services are driving Caris's payment?
 
 SELECT
@@ -370,6 +340,7 @@ Caris Mpi's high estimated payment was primarily driven by HCPCS 81479 — Molec
 an unusually high number of services.
 */ 
 
+-- caris to same service comparison
 -- Now we compare Caris with another provider performing the same HCPCS code. to understand it is really expensive or not
 
 SELECT
