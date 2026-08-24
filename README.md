@@ -49,4 +49,4 @@ The analysis identified potentially unusual utilization and payment patterns for
 
 Dashboard
 
-Power BI Dashboard: ![https://github.com/ristakhadka013/healthcare-provider-utilization-analysis/blob/main/power%20bi/Dashboard.pbix]
+![https://github.com/ristakhadka013/healthcare-provider-utilization-analysis/blob/main/power%20bi/Dashboard.pbix)
